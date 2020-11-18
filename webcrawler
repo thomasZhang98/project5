@@ -40,11 +40,11 @@ frontiers = []
 seenPages = []
 cookies = []
 flags = []
-USERNAME = "1473007"
-Password = "3RI9VBLI"
+USERNAME = ""
+Password = ""
 FirstHTML = ""
 
-# ======================= Helpers ==================
+# ======================= Helpers ======================
 class MyHTMLParser(HTMLParser):
   # Store all links into frontiers
   def handle_starttag(self, tag, attrs):
@@ -80,6 +80,14 @@ def handleCode(resp, req):
         break
 
 # ======================= Set up the socket ==================
+# Get username and password from user input
+if len(sys.argv) != 3:
+  print("Wrong number of inputs. Please input username and password in order.")
+  exit(1)
+
+USERNAME = sys.argv[1]
+Password = sys.argv[2]
+
 # Set up socket with TCP and connect.
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
 sock.connect((hostname, PORT))
@@ -104,7 +112,6 @@ GET = "GET " + fakebook + " HTTP/1.1\r\n" + "Host: " + hostname + "\r\nConnectio
 sock.sendall(GET)
 # Receive the homepage
 homepage = sock.recv(BUFFERSIZE)
-print(homepage)
 seenPages.append("/fakebook/")
 parser = MyHTMLParser()
 parser.feed(homepage)
@@ -124,4 +131,5 @@ while frontiers and len(flags) < 5:
     if page.split()[-1] == '0':
       break
 
-print(flags)
+for flag in flags:
+  print(flag)
