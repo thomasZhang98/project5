@@ -40,11 +40,9 @@ frontiers = []
 seenPages = []
 cookies = []
 flags = []
-CSRFToken = ""
 USERNAME = "1473007"
 Password = "3RI9VBLI"
 FirstHTML = ""
-friendPage = ""
 
 # ======================= Helpers ==================
 class MyHTMLParser(HTMLParser):
@@ -108,7 +106,6 @@ sock.sendall(GET)
 homepage = sock.recv(BUFFERSIZE)
 print(homepage)
 seenPages.append("/fakebook/")
-
 parser = MyHTMLParser()
 parser.feed(homepage)
 # Look for secret flag
@@ -127,6 +124,4 @@ while frontiers and len(flags) < 5:
     if page.split()[-1] == '0':
       break
 
-
-  
 print(flags)
