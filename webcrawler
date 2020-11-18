@@ -125,10 +125,10 @@ while frontiers and len(flags) < 5:
   sock.sendall(GET)
   while True:
     page = sock.recv(BUFFERSIZE)
-    seenPages.append(prev)
     parser = MyHTMLParser()
     parser.feed(page)
     if page.split()[-1] == '0':
+      seenPages.append(prev)
       break
 
 for flag in flags:
