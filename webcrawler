@@ -63,25 +63,7 @@ class MyHTMLParser(HTMLParser):
     global flags
     if data[:5] == "FLAG:":
       flags.append(data[6:])
-          
-
-class homepageToFriendList(HTMLParser):
-  # Store all links into frontiers
-  def handle_starttag(self, tag, attrs):
-    global friendPage
-    if tag == "a":
-      for attr in attrs:
-        if attr[0] == "href":
-          if attr[1][:10] == "/fakebook/":
-            GET = "GET " + attr[1] + " HTTP/1.1\r\n" + "Host: " + hostname + "\r\nConnection: Keep-Alive\r\nCookie: " + cookies[0] + " " + cookies[2] + "\r\n\r\n"
-            sock.sendall(GET)
-            friendPage = sock.recv(BUFFERSIZE)
-
-  # Find the secret flag and store it
-  def handle_data(self, data):
-    global flags
-    if data[:5] == "FLAG:":
-      flags.append(data[6:])
+        
 
 # To store the cookies of the response into the list of cookies.
 def storeCookies(html):
@@ -90,6 +72,14 @@ def storeCookies(html):
   for a in range(len(words)):
     if words[a] == "Set-Cookie:":
       cookies.append(words[a+1])
+
+def handleCode(resp, req):
+  global sock
+  if code == 302:
+    loc = True
+    for word in resp.split():
+      if word == 'Location:':
+        break
 
 # ======================= Set up the socket ==================
 # Set up socket with TCP and connect.
@@ -118,23 +108,25 @@ sock.sendall(GET)
 homepage = sock.recv(BUFFERSIZE)
 print(homepage)
 seenPages.append("/fakebook/")
+
+parser = MyHTMLParser()
+parser.feed(homepage)
 # Look for secret flag
 # Crawl recursively, add page to seenPages. If seen, break loop.
 # Stop when get all 5 secret flags
-parser = MyHTMLParser()
-parser.feed(homepage)
-
-while frontiers or len(flags) == 5:
+while frontiers and len(flags) < 5:
+  #print(frontiers[0])
   prev = frontiers.pop(0)
   GET = "GET " + prev + " HTTP/1.1\r\n" + "Host: " + hostname + "\r\nConnection: Keep-Alive\r\nCookie: " + cookies[0] + " " + cookies[2] + "\r\n\r\n"
   sock.sendall(GET)
-  page = sock.recv(BUFFERSIZE)
+  while True:
+    page = sock.recv(BUFFERSIZE)
+    seenPages.append(prev)
+    parser = MyHTMLParser()
+    parser.feed(page)
+    if page.split()[-1] == '0':
+      break
 
-  newParser = homepageToFriendList()
-  newParser.feed(page)
 
-  parser = MyHTMLParser()
-  parser.feed(friendPage)
-  seenPages.append(prev)
   
 print(flags)
