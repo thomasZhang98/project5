@@ -1,0 +1,140 @@
+#!/usr/bin/python -u
+
+# Syntax ./webcrawler username password
+# Crawl the website and every url in the website
+# Crawl recursively to find the secret flags
+# like: <h2 class='secret_flag' style="color:red">FLAG: 64-characters-of-random-alphanumerics</h2>
+# Requirements:
+# 1. HTTP/1.1
+# 2. use Host
+# 3. Connection: Keep-Alive
+# 4. Accept-Encoding: gzip
+# 5. Deal with chunked encoding with 1.1
+# HTTP protocols:
+# 1. HTTP GET
+# 2. HTTP POST 
+# 3. Cookie management, send cookie to the right domain
+# Handle HTTP status code:
+# 1. 200: success
+# 2. 302: HTTP redirect. Should try the request again using the new URL given by the server in 
+# the Location header.
+# 3. 403: Forbidden. 404: Not found. Should abandon the URL and generated the error code
+# 4. 500: Internal server error: Should retry the request for the URL until the requst is successful
+# Other things:
+# 1. Track the Frontier
+# 2. Watch out for loops
+# 3. Only Crawl the Target domain
+
+
+import sys
+import socket
+from HTMLParser import HTMLParser
+
+# ======================= Constants =========================
+hostname = 'www.3700.network'
+fakebook = 'http://www.3700.network/fakebook/'
+loginPage = '/accounts/login/?next=/fakebook/'
+PORT = 80
+BUFFERSIZE = 8000
+frontiers = []
+seenPages = []
+cookies = []
+flags = []
+CSRFToken = ""
+USERNAME = "1473007"
+Password = "3RI9VBLI"
+FirstHTML = ""
+friendPage = ""
+
+# ======================= Helpers ==================
+class MyHTMLParser(HTMLParser):
+  # Store all links into frontiers
+  def handle_starttag(self, tag, attrs):
+    global seenPages
+    global frontiers
+    if tag == "a":
+      for attr in attrs:
+        if attr[0] == "href":
+          if (attr[1] not in seenPages) and (attr[1] not in frontiers) and attr[1][:10] == "/fakebook/":
+            frontiers.append(attr[1])
+
+  # Find the secret flag and store it
+  def handle_data(self, data):
+    global flags
+    if data[:5] == "FLAG:":
+      flags.append(data[6:])
+          
+
+class homepageToFriendList(HTMLParser):
+  # Store all links into frontiers
+  def handle_starttag(self, tag, attrs):
+    global friendPage
+    if tag == "a":
+      for attr in attrs:
+        if attr[0] == "href":
+          if attr[1][:10] == "/fakebook/":
+            GET = "GET " + attr[1] + " HTTP/1.1\r\n" + "Host: " + hostname + "\r\nConnection: Keep-Alive\r\nCookie: " + cookies[0] + " " + cookies[2] + "\r\n\r\n"
+            sock.sendall(GET)
+            friendPage = sock.recv(BUFFERSIZE)
+
+  # Find the secret flag and store it
+  def handle_data(self, data):
+    global flags
+    if data[:5] == "FLAG:":
+      flags.append(data[6:])
+
+# To store the cookies of the response into the list of cookies.
+def storeCookies(html):
+  global cookies
+  words = html.split()
+  for a in range(len(words)):
+    if words[a] == "Set-Cookie:":
+      cookies.append(words[a+1])
+
+# ======================= Set up the socket ==================
+# Set up socket with TCP and connect.
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+sock.connect((hostname, PORT))
+
+# ======================= Actual Program ====================
+# Send GET login page
+sock.sendall('GET ' + loginPage + " HTTP/1.1\r\nHost: " + hostname + "\r\n\r\n")
+# Receive the login HTML page.
+FirstHTML = sock.recv(BUFFERSIZE)
+# Parse the response and store any available cookies into the global dictionary.
+storeCookies(FirstHTML)
+# Send the POST with the hidden CSRF token
+content = "username=" + USERNAME + "&password=" + Password + "&csrfmiddlewaretoken=" + cookies[0][10:-1] + "&next=%2Ffakebook%2F"
+Post = ("POST " + loginPage + " HTTP/1.1\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: " 
++ str(len(content)) + "\r\nHost: " + hostname + "\r\nCookie: " + cookies[0]
+   + " " + cookies[1] + "\r\n\r\n" + content)
+sock.sendall(Post)
+# Receive the cookie
+secondHTML = sock.recv(BUFFERSIZE)
+storeCookies(secondHTML)
+GET = "GET " + fakebook + " HTTP/1.1\r\n" + "Host: " + hostname + "\r\nConnection: Keep-Alive\r\nCookie: " + cookies[0] + " " + cookies[2] + "\r\n\r\n"
+sock.sendall(GET)
+# Receive the homepage
+homepage = sock.recv(BUFFERSIZE)
+print(homepage)
+seenPages.append("/fakebook/")
+# Look for secret flag
+# Crawl recursively, add page to seenPages. If seen, break loop.
+# Stop when get all 5 secret flags
+parser = MyHTMLParser()
+parser.feed(homepage)
+
+while frontiers or len(flags) == 5:
+  prev = frontiers.pop(0)
+  GET = "GET " + prev + " HTTP/1.1\r\n" + "Host: " + hostname + "\r\nConnection: Keep-Alive\r\nCookie: " + cookies[0] + " " + cookies[2] + "\r\n\r\n"
+  sock.sendall(GET)
+  page = sock.recv(BUFFERSIZE)
+
+  newParser = homepageToFriendList()
+  newParser.feed(page)
+
+  parser = MyHTMLParser()
+  parser.feed(friendPage)
+  seenPages.append(prev)
+  
+print(flags)
