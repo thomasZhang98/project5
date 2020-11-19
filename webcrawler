@@ -120,13 +120,15 @@ while frontiers and len(flags) < 5:
   firstChunk = True
   while True:
     page = sock.recv(BUFFERSIZE)
+    error = False
     if firstChunk: 
       words = page.split()
-      if words[1] == 500:
+      #print(page)
+      if words[1] == '500':
         frontiers.insert(0, prev)
         #print('got 500')
-        break
-      elif words[1] == 302:
+        error = True
+      elif words[1] == '302':
         #print('got 302')
         loc = False
         for word in words:
@@ -135,13 +137,14 @@ while frontiers and len(flags) < 5:
           elif loc:
             frontiers.insert(0, word)
             break
-        break
+        error = True
       elif words[1] == '403' or words[1] == '404':
         #print('got 400')
-        break
-    seenPages.append(prev)
-    parser = MyHTMLParser()
-    parser.feed(page)
+        error = True
+    if not error:
+      seenPages.append(prev)
+      parser = MyHTMLParser()
+      parser.feed(page)
     firstChunk = False
     if page.split()[-1] == '0':
       break
