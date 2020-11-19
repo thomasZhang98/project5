@@ -59,6 +59,7 @@ class MyHTMLParser(HTMLParser):
   # Find the secret flag and store it
   def handle_data(self, data):
     global flags
+    global current
     if data[:5] == "FLAG:":
       flags.append(data[6:])
         
@@ -71,13 +72,6 @@ def storeCookies(html):
     if words[a] == "Set-Cookie:":
       cookies.append(words[a+1])
 
-def handleCode(resp, req):
-  global sock
-  if code == 302:
-    loc = True
-    for word in resp.split():
-      if word == 'Location:':
-        break
 
 # ======================= Set up the socket ==================
 # Get username and password from user input
@@ -123,12 +117,33 @@ while frontiers and len(flags) < 5:
   prev = frontiers.pop(0)
   GET = "GET " + prev + " HTTP/1.1\r\n" + "Host: " + hostname + "\r\nConnection: Keep-Alive\r\nCookie: " + cookies[0] + " " + cookies[2] + "\r\n\r\n"
   sock.sendall(GET)
+  firstChunk = True
   while True:
     page = sock.recv(BUFFERSIZE)
+    if firstChunk: 
+      words = page.split()
+      if words[1] == 500:
+        frontiers.insert(0, prev)
+        #print('got 500')
+        break
+      elif words[1] == 302:
+        #print('got 302')
+        loc = False
+        for word in words:
+          if word == 'Location:':
+            loc = True
+          elif loc:
+            frontiers.insert(0, word)
+            break
+        break
+      elif words[1] == '403' or words[1] == '404':
+        #print('got 400')
+        break
+    seenPages.append(prev)
     parser = MyHTMLParser()
     parser.feed(page)
+    firstChunk = False
     if page.split()[-1] == '0':
-      seenPages.append(prev)
       break
 
 for flag in flags:
