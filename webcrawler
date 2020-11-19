@@ -118,9 +118,9 @@ while frontiers and len(flags) < 5:
   GET = "GET " + prev + " HTTP/1.1\r\n" + "Host: " + hostname + "\r\nConnection: Keep-Alive\r\nCookie: " + cookies[0] + " " + cookies[2] + "\r\n\r\n"
   sock.sendall(GET)
   firstChunk = True
+  error = False
   while True:
     page = sock.recv(BUFFERSIZE)
-    error = False
     if firstChunk: 
       words = page.split()
       #print(page)
